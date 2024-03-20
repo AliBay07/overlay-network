@@ -11,8 +11,10 @@ public class LayerRequest implements Serializable, Request {
         this.message = message;
     }
 
-    public LayerRequest(String message, int value) {
+    public LayerRequest(String message, int senderNodeId, int destinationNodeId, int value) {
         this.message = message;
+        this.senderNodeId = senderNodeId;
+        this.destinationNodeId = destinationNodeId;
         this.value = value;
     }
 

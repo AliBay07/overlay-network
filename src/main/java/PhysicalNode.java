@@ -155,14 +155,11 @@ public class PhysicalNode {
             DeliverCallback deliverCallbackPhysicalNodes = (consumerTag, delivery) -> {
                 RouterRequest routerRequest = (RouterRequest) RequestDeserializer.deserialize(delivery.getBody());
                 if (routerRequest != null) {
-                    System.out.println("I'm in node " + n.getNodeID() + " and the destination is " + routerRequest.getDestinationNodeId());
                     if (routerRequest.getDestinationNodeId() == n.getNodeID()) {
-                        sendToVirtualNode(n.channel, new LayerRequest(routerRequest.getMessage()));
+                        sendToVirtualNode(n.channel, new LayerRequest(routerRequest.getMessage(), n.getNodeID(), routerRequest.getDestinationNodeId()));
                     } else {
                         Integer nextNode = n.getNextNode(routerRequest.getDestinationNodeId(), n.getNeighborTable());
                         if (nextNode != null) {
-                            System.out.println("Next node after " + n.getNodeID()
-                                    + " to reach " + routerRequest.getDestinationNodeId() + ": " + nextNode);
                             sendToPhysicalNode(n.channel, new RouterRequest(routerRequest.getMessage(), n.getNodeID(),
                                     routerRequest.getDestinationNodeId()), nextNode);
                         }
@@ -178,9 +175,10 @@ public class PhysicalNode {
             DeliverCallback deliverCallbackBetweenLayers = (consumerTag, delivery) -> {
                 LayerRequest layerRequest = (LayerRequest) RequestDeserializer.deserialize(delivery.getBody());
                 if (layerRequest != null) {
+
                     if (layerRequest.getMessage().equals("getNetworkSize")) {
                         System.out.println(layerRequest.getMessage());
-                        sendToVirtualNode(n.channel, new LayerRequest("networkSize", n.getNeighborTable().size()));
+                        sendToVirtualNode(n.channel, new LayerRequest("networkSize", n.getNodeID(), layerRequest.getDestinationNodeId(), n.getNeighborTable().size()));
                     } else {
                         Integer nextNode = n.getNextNode(layerRequest.getDestinationNodeId(), n.getNeighborTable());
                         if (nextNode != null) {
@@ -206,7 +204,7 @@ public class PhysicalNode {
         oos.writeObject(routerRequest);
         oos.flush();
         String queue = "queue_" + routerRequest.getSenderNodeId() + "_" + nextNode;
-        System.out.println("Sending message from " + routerRequest.getSenderNodeId() + " to " + nextNode);
+        System.out.println("Sending message from " + routerRequest.getSenderNodeId() + " to " + nextNode + " : " + routerRequest.getMessage());
         channel.basicPublish("", queue, null, bos.toByteArray());
     }
 
@@ -216,7 +214,7 @@ public class PhysicalNode {
         oos.writeObject(request);
         oos.flush();
         String queue = "queue" + request.getSenderNodeId() + "_p_v";
-        System.out.println("Sending message from Physical to Virtual Node number " + request.getSenderNodeId());
+        System.out.println("Sending message from Physical to Virtual Node number " + request.getSenderNodeId() + " : " + request.getMessage());
         channel.basicPublish("", queue, null, bos.toByteArray());
     }
 }

@@ -86,7 +86,6 @@ public class VirtualNode {
             LayerRequest request = (LayerRequest) RequestDeserializer.deserialize(delivery.getBody());
             if (request != null) {
                 if (request.getMessage().equals("networkSize")) {
-                    System.out.println("I GOT THE SIZE " + request.getValue());
                     n.setNumberOfRouters(request.getValue());
                     n.setNeighbors();
 
@@ -126,8 +125,7 @@ public class VirtualNode {
         oos.writeObject(request);
         oos.flush();
         String queue = "queue" + request.getSenderNodeId() + "_v_p";
-        System.out.println("Sending message from Virtual to Physical Node number " + request.getSenderNodeId());
-        System.out.println("Message being sent is : " + request.getMessage());
+        System.out.println("Sending message from Virtual to Physical Node number " + request.getSenderNodeId() + " : " + request.getMessage());
         channel.basicPublish("", queue, null, bos.toByteArray());
     }
 

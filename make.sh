@@ -18,7 +18,7 @@ gnome-terminal -- java -cp $CP:bin VirtualNode 1
 
 gnome-terminal -- java -cp $CP:bin VirtualNode 4
 
-gnome-terminal -- java -cp $CP:bin VirtualNode 0 hey r
+gnome-terminal -- java -cp $CP:bin VirtualNode 0 hey l
 
 
 
