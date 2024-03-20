@@ -105,7 +105,7 @@ public class PhysicalNode {
         }
     }
 
-        private void setupRabbitMQ() throws Exception {
+    private void setupRabbitMQ() throws Exception {
         ConnectionFactory factory = new ConnectionFactory();
         // Set necessary connection properties, e.g., host
         factory.setHost("localhost");
@@ -121,6 +121,13 @@ public class PhysicalNode {
             channel.queueDeclare(queueName2, false, false, false, null);
         }
     }
+
+    public void createQueuePhyVirt() throws Exception {
+        String queueName1 = "queue" + nodeID + "_v_p";
+        String queueName2 = "queue" + nodeID + "_p_v";
+        channel.queueDeclare(queueName1, false, false, false, null);
+        channel.queueDeclare(queueName2, false, false, false, null);
+    }
    
     public static void main(String[] args) {
         if (args.length == 0) {
@@ -129,7 +136,7 @@ public class PhysicalNode {
 
         try {
             PhysicalNode n = new PhysicalNode(Integer.parseInt(args[0]));
-            System.out.println("I'm node " + n.getNodeID() + " !!!!!");
+            System.out.println("Physical Node " + n.getNodeID());
             ArrayList<ArrayList<String>> nodesInformation = MatrixReader.getNodesInformation();
 
             for (int i = 0; i < nodesInformation.size(); i++) {
@@ -143,20 +150,21 @@ public class PhysicalNode {
 
             n.setNeighbors(n.neighborTable.get(n.getNodeID()));
             n.createQueuesForNeighbors();
+            n.createQueuePhyVirt();
 
-            DeliverCallback deliverCallback = (consumerTag, delivery) -> {
-                Request request = deserialize(delivery.getBody());
-                if (request != null) {
-                    if (request.getDestinationNodeId() == n.getNodeID()) {
-                        System.out.println("Message received from " + request.getSenderNodeId() + ": " + request.getMessage()
-                                + " - time " + (System.currentTimeMillis() - request.getCreationTime()) + " ms");
+            DeliverCallback deliverCallbackPhysicalNodes = (consumerTag, delivery) -> {
+                RouterRequest routerRequest = (RouterRequest) RequestDeserializer.deserialize(delivery.getBody());
+                if (routerRequest != null) {
+                    System.out.println("I'm in node " + n.getNodeID() + " and the destination is " + routerRequest.getDestinationNodeId());
+                    if (routerRequest.getDestinationNodeId() == n.getNodeID()) {
+                        sendToVirtualNode(n.channel, new LayerRequest(routerRequest.getMessage()));
                     } else {
-                        Integer nextNode = n.getNextNode(request.getDestinationNodeId(), n.getNeighborTable());
+                        Integer nextNode = n.getNextNode(routerRequest.getDestinationNodeId(), n.getNeighborTable());
                         if (nextNode != null) {
                             System.out.println("Next node after " + n.getNodeID()
-                                    + " to reach " + request.getDestinationNodeId() + ": " + nextNode);
-                            sendTo(n.channel, new Request("Hello", n.getNodeID(),
-                                    request.getDestinationNodeId()), nextNode);
+                                    + " to reach " + routerRequest.getDestinationNodeId() + ": " + nextNode);
+                            sendToPhysicalNode(n.channel, new RouterRequest(routerRequest.getMessage(), n.getNodeID(),
+                                    routerRequest.getDestinationNodeId()), nextNode);
                         }
                     }
                 }
@@ -164,36 +172,51 @@ public class PhysicalNode {
 
             for (Integer neighborID : n.getNeighbors()) {
                 String queueName = "queue_" + neighborID + "_" + n.getNodeID();
-                n.channel.basicConsume(queueName, true, deliverCallback, consumerTag -> {});
+                n.channel.basicConsume(queueName, true, deliverCallbackPhysicalNodes, consumerTag -> {});
             }
 
-            if (args.length == 2) {
-                Integer nextNode = n.getNextNode(Integer.parseInt(args[1]), n.getNeighborTable());
-                sendTo(n.channel, new Request("Hello", n.getNodeID(), Integer.parseInt(args[1])), nextNode);
-            }
+            DeliverCallback deliverCallbackBetweenLayers = (consumerTag, delivery) -> {
+                LayerRequest layerRequest = (LayerRequest) RequestDeserializer.deserialize(delivery.getBody());
+                if (layerRequest != null) {
+                    if (layerRequest.getMessage().equals("getNetworkSize")) {
+                        System.out.println(layerRequest.getMessage());
+                        sendToVirtualNode(n.channel, new LayerRequest("networkSize", n.getNeighborTable().size()));
+                    } else {
+                        Integer nextNode = n.getNextNode(layerRequest.getDestinationNodeId(), n.getNeighborTable());
+                        if (nextNode != null) {
+                            sendToPhysicalNode(n.channel, new RouterRequest(layerRequest.getMessage(), n.getNodeID(),
+                                    layerRequest.getDestinationNodeId()), nextNode);
+                        }
+                    }
+                }
+            };
+
+            String queueName = "queue" + n.getNodeID() + "_v_p";
+            n.channel.basicConsume(queueName, true, deliverCallbackBetweenLayers, consumerTag -> {});
 
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
-    private static void sendTo(Channel channel, Request request, int nextNode) throws IOException {
-        request.setCreationTime(System.currentTimeMillis());
+    private static void sendToPhysicalNode(Channel channel, RouterRequest routerRequest, int nextNode) throws IOException {
+        routerRequest.setCreationTime(System.currentTimeMillis());
+        ByteArrayOutputStream bos = new ByteArrayOutputStream();
+        ObjectOutputStream oos = new ObjectOutputStream(bos);
+        oos.writeObject(routerRequest);
+        oos.flush();
+        String queue = "queue_" + routerRequest.getSenderNodeId() + "_" + nextNode;
+        System.out.println("Sending message from " + routerRequest.getSenderNodeId() + " to " + nextNode);
+        channel.basicPublish("", queue, null, bos.toByteArray());
+    }
+
+    private static void sendToVirtualNode(Channel channel, LayerRequest request) throws IOException {
         ByteArrayOutputStream bos = new ByteArrayOutputStream();
         ObjectOutputStream oos = new ObjectOutputStream(bos);
         oos.writeObject(request);
         oos.flush();
-        String queue = "queue_" + request.getSenderNodeId() + "_" + nextNode;
-        System.out.println("Sending message from " + request.getSenderNodeId() + " to " + nextNode);
+        String queue = "queue" + request.getSenderNodeId() + "_p_v";
+        System.out.println("Sending message from Physical to Virtual Node number " + request.getSenderNodeId());
         channel.basicPublish("", queue, null, bos.toByteArray());
-    }
-
-    private static Request deserialize(byte[] bytes) {
-        try (ObjectInputStream ois = new ObjectInputStream(new ByteArrayInputStream(bytes))) {
-            return (Request) ois.readObject();
-        } catch (IOException | ClassNotFoundException e) {
-            e.printStackTrace();
-            return null;
-        }
     }
 }
