@@ -48,7 +48,6 @@ public class PhysicalNode {
         if (!neighborTable.containsKey(destinationRouter)) {
             return null;
         }
-
         HashMap<Integer, Integer> parentMap = new HashMap<>();
         HashMap<Integer, Integer> distance = new HashMap<>();
         PriorityQueue<Integer> pq = new PriorityQueue<>(Comparator.comparingInt(distance::get));
@@ -86,10 +85,10 @@ public class PhysicalNode {
             node = parentMap.get(node);
         }
 
-        if (path.isEmpty() || path.size() == 1) {
+        if (path.isEmpty()) {
             return null;
         }
-        
+
         return path.get(0);
     }
 
@@ -120,7 +119,6 @@ public class PhysicalNode {
             String queueName2 = "queue_" + neighborID + "_" + nodeID;
             channel.queueDeclare(queueName1, false, false, false, null);
             channel.queueDeclare(queueName2, false, false, false, null);
-//            System.out.println("Queues Created: " + queueName1 + ", " + queueName2);
         }
     }
    
@@ -167,7 +165,6 @@ public class PhysicalNode {
             for (Integer neighborID : n.getNeighbors()) {
                 String queueName = "queue_" + neighborID + "_" + n.getNodeID();
                 n.channel.basicConsume(queueName, true, deliverCallback, consumerTag -> {});
-//                System.out.println("Node " + n.getNodeID() + " is consuming from " + neighborID);
             }
 
             if (args.length == 2) {
