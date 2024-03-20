@@ -5,8 +5,7 @@ import java.util.ArrayList;
 
 public class MatrixReader {
 
-    public static ArrayList<ArrayList<String>> getNodesInformation() {
-        String filePath = "input.txt";
+    public static ArrayList<ArrayList<String>> getNodesInformation(String filePath) {
         ArrayList<ArrayList<String>> matrix = new ArrayList<>();
 
         try (BufferedReader reader = new BufferedReader(new FileReader(filePath))) {
