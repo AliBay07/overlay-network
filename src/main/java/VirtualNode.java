@@ -3,11 +3,14 @@ import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
 import com.rabbitmq.client.DeliverCallback;
 
+import javax.imageio.ImageIO;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
 
@@ -20,6 +23,8 @@ public class VirtualNode extends JFrame {
     private final JTextField inputField;
     private final JButton sendLeftButton;
     private final JButton sendRightButton;
+    private JLabel imageLabel = new JLabel();
+    private boolean withGraph = false;
 
     // RabbitMQ
     private Connection connection;
@@ -45,6 +50,14 @@ public class VirtualNode extends JFrame {
         return numberOfRouters;
     }
 
+    public boolean isWithGraph() {
+        return withGraph;
+    }
+
+    public void setWithGraph(boolean withGraph) {
+        this.withGraph = withGraph;
+    }
+
     private void setNeighbors() {
         this.rightNodeId = (nodeID + 1) % numberOfRouters;
         this.leftNodeId = (nodeID - 1 + numberOfRouters) % numberOfRouters;
@@ -63,11 +76,13 @@ public class VirtualNode extends JFrame {
 
     public void sendMessageRight(String message) throws IOException {
         SwingUtilities.invokeLater(() -> this.chatArea.append("Message sent to " + rightNodeId + ": " + message + "\n"));
+        Logger.log("\n========SENDING NEW MESSAGE " + "'" + message + "' FROM " + this.nodeID + " TO " +  rightNodeId + "========");
         sendTo(channel, new Request(message, nodeID, nodeID, rightNodeId));
     }
 
     public void sendMessageLeft(String message) throws IOException {
         SwingUtilities.invokeLater(() -> this.chatArea.append("Message sent to " + leftNodeId + ": " + message + "\n"));
+        Logger.log("\n========SENDING NEW MESSAGE " + "'" + message + "' FROM " + this.nodeID + " TO " +  leftNodeId + "========");
         sendTo(channel, new Request(message, nodeID, nodeID, leftNodeId));
     }
 
@@ -110,7 +125,6 @@ public class VirtualNode extends JFrame {
         });
 
         // Setup RabbitMQ Connection
-        initGUI();
         setupRabbitMQ();
     }
 
@@ -121,7 +135,24 @@ public class VirtualNode extends JFrame {
 
         chatArea.setEditable(false);
         JScrollPane chatScrollPane = new JScrollPane(chatArea);
-        add(chatScrollPane, BorderLayout.CENTER);
+
+        if (withGraph) {
+            BufferedImage image = null;
+            try {
+                image = ImageIO.read(new File("graphs/graph.png"));
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
+            imageLabel.setIcon(new ImageIcon(image));
+
+            JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, imageLabel, chatScrollPane);
+            splitPane.setResizeWeight(0.1);
+
+            add(splitPane, BorderLayout.CENTER);
+        } else {
+            add(chatScrollPane, BorderLayout.CENTER);
+        }
 
         JPanel inputPanel = new JPanel(new BorderLayout());
         inputPanel.add(inputField, BorderLayout.CENTER);
@@ -130,7 +161,7 @@ public class VirtualNode extends JFrame {
         add(inputPanel, BorderLayout.SOUTH);
 
         pack();
-        setSize(600, 400);
+        setSize(800 + (withGraph ? 400 : 0), 600);
         setLocationRelativeTo(null);
 
         SwingUtilities.invokeLater(() -> setVisible(true));
@@ -152,6 +183,12 @@ public class VirtualNode extends JFrame {
         VirtualNode n = new VirtualNode(Integer.parseInt(args[0]));
         System.out.println("Virtual Node " + n.getNodeID());
 
+        if (args.length == 3) {
+            n.setWithGraph(true);
+        }
+
+        n.initGUI();
+
         n.createQueueBetweenLayers();
 
         DeliverCallback deliverCallback = (consumerTag, delivery) -> {
@@ -160,12 +197,11 @@ public class VirtualNode extends JFrame {
                 if (request.getMessage().equals("networkSize")) {
                     n.setNumberOfRouters(request.getValue());
                     n.setNeighbors();
-
                 } else {
-                    System.out.println("Message received from " + request.getSenderNodeId() + ": " + request.getMessage()
-                            + " - time " + (System.currentTimeMillis() - request.getCreationTime()) + " ms");
                     SwingUtilities.invokeLater(() -> n.getChatArea().append("Message received from " + request.getOriginalNodeId() + ": " + request.getMessage()
                             + " - time " + (System.currentTimeMillis() - request.getCreationTime()) + " ms\n"));
+                    Logger.log("Virtual Node " + request.getSenderNodeId() + " : Message received from node " + request.getOriginalNodeId() + ": " + request.getMessage());
+                    Logger.log("========================================================");
                 }
             }
         };
@@ -189,7 +225,7 @@ public class VirtualNode extends JFrame {
         oos.writeObject(request);
         oos.flush();
         String queue = "queue" + request.getSenderNodeId() + "_v_p";
-        System.out.println("Sending message from Virtual to Physical Node number " + request.getSenderNodeId() + " : " + request.getMessage());
+        Logger.log("Virtual Node " + request.getSenderNodeId() + " : Sending message from Virtual to Physical Layer");
         channel.basicPublish("", queue, null, bos.toByteArray());
     }
 

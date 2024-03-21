@@ -1,0 +1,8 @@
+Virtual Node 0 : Sending message from Virtual to Physical Layer
+Physical Node 0 : Sending message from Physical to Virtual Layer
+Virtual Node 1 : Sending message from Virtual to Physical Layer
+Physical Node 1 : Sending message from Physical to Virtual Layer
+Virtual Node 2 : Sending message from Virtual to Physical Layer
+Physical Node 2 : Sending message from Physical to Virtual Layer
+Virtual Node 3 : Sending message from Virtual to Physical Layer
+Physical Node 3 : Sending message from Physical to Virtual Layer

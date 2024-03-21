@@ -9,6 +9,8 @@ public class PhysicalNode {
     private ArrayList<Integer> neighbors;
     private ArrayList<String> nodeInformation;
 
+    private Hashtable<String, ArrayList<Integer>> shortestPaths = new Hashtable<>();
+
     // RabbitMQ
     private Connection connection;
     private Channel channel;
@@ -22,6 +24,10 @@ public class PhysicalNode {
 
         // Setup RabbitMQ Connection
         setupRabbitMQ();
+    }
+
+    public Hashtable<String, ArrayList<Integer>> getShortestPaths() {
+        return shortestPaths;
     }
 
     public int getNodeID() {
@@ -44,10 +50,7 @@ public class PhysicalNode {
         return neighborTable;
     }
 
-    public Integer getNextNode(int destinationRouter, Hashtable<Integer, ArrayList<Integer>> neighborTable) {
-        if (!neighborTable.containsKey(destinationRouter)) {
-            return null;
-        }
+    public void generateNodePaths() {
         HashMap<Integer, Integer> parentMap = new HashMap<>();
         HashMap<Integer, Integer> distance = new HashMap<>();
         PriorityQueue<Integer> pq = new PriorityQueue<>(Comparator.comparingInt(distance::get));
@@ -63,10 +66,6 @@ public class PhysicalNode {
 
         while (!pq.isEmpty()) {
             int currentRouter = pq.poll();
-            if (currentRouter == destinationRouter) {
-                break;
-            }
-
             for (int neighbor : neighborTable.get(currentRouter)) {
                 int newDistance = distance.get(currentRouter) + 1;
                 if (newDistance < distance.get(neighbor)) {
@@ -78,17 +77,28 @@ public class PhysicalNode {
             }
         }
 
-        ArrayList<Integer> path = new ArrayList<>();
-        int node = destinationRouter;
-        while (node != this.getNodeID()) {
-            path.add(0, node);
-            node = parentMap.get(node);
+        for (int node : neighborTable.keySet()) {
+            if (node != this.getNodeID()) {
+                int currentNode = node;
+                ArrayList<Integer> path = new ArrayList<>();
+                while (currentNode != this.getNodeID()) {
+                    path.add(0, currentNode);
+                    currentNode = parentMap.get(currentNode);
+                }
+                shortestPaths.put(this.getNodeID() + "-" + node, path);
+            }
         }
+    }
 
+    public Integer getNextNode(int destinationRouter) {
+        String key = this.nodeID + "-" + destinationRouter;
+        if (!shortestPaths.containsKey(key)) {
+            return null;
+        }
+        ArrayList<Integer> path = shortestPaths.get(key);
         if (path.isEmpty()) {
             return null;
         }
-
         return path.get(0);
     }
 
@@ -128,7 +138,7 @@ public class PhysicalNode {
         channel.queueDeclare(queueName1, false, false, false, null);
         channel.queueDeclare(queueName2, false, false, false, null);
     }
-   
+
     public static void main(String[] args) {
 
         if (args.length < 2) {
@@ -151,6 +161,7 @@ public class PhysicalNode {
             n.createNeighborTable(nodesInformation);
 
             n.setNeighbors(n.neighborTable.get(n.getNodeID()));
+            n.generateNodePaths();
             n.createQueuesForNeighbors();
             n.createQueueBetweenLayers();
 
@@ -160,7 +171,7 @@ public class PhysicalNode {
                     if (request.getDestinationNodeId() == n.getNodeID()) {
                         sendToVirtualNode(n.channel, new Request(request.getMessage(), request.getOriginalNodeId(), n.getNodeID(), request.getDestinationNodeId()));
                     } else {
-                        Integer nextNode = n.getNextNode(request.getDestinationNodeId(), n.getNeighborTable());
+                        Integer nextNode = n.getNextNode(request.getDestinationNodeId());
                         if (nextNode != null) {
                             sendToPhysicalNode(n.channel, new Request(request.getMessage(), request.getOriginalNodeId(), n.getNodeID(),
                                     request.getDestinationNodeId()), nextNode);
@@ -182,11 +193,10 @@ public class PhysicalNode {
                 if (request != null) {
 
                     if (request.getMessage().equals("getNetworkSize")) {
-                        System.out.println(request.getMessage());
                         sendToVirtualNode(n.channel, new Request("networkSize", request.getOriginalNodeId(), n.getNodeID(),
                                 request.getDestinationNodeId(), n.getNeighborTable().size()));
                     } else {
-                        Integer nextNode = n.getNextNode(request.getDestinationNodeId(), n.getNeighborTable());
+                        Integer nextNode = n.getNextNode(request.getDestinationNodeId());
                         if (nextNode != null) {
                             sendToPhysicalNode(n.channel, new Request(request.getMessage(), request.getOriginalNodeId(), n.getNodeID(),
                                     request.getDestinationNodeId()), nextNode);
@@ -213,7 +223,7 @@ public class PhysicalNode {
         oos.writeObject(request);
         oos.flush();
         String queue = "queue_" + request.getSenderNodeId() + "_" + nextNode;
-        System.out.println("Sending message from " + request.getSenderNodeId() + " to " + nextNode + " : " + request.getMessage());
+        Logger.log("Physical Node " + request.getSenderNodeId() + " : Sending message in the Physical Layer from " + request.getSenderNodeId() + " to " + nextNode);
         channel.basicPublish("", queue, null, bos.toByteArray());
     }
 
@@ -223,7 +233,7 @@ public class PhysicalNode {
         oos.writeObject(request);
         oos.flush();
         String queue = "queue" + request.getSenderNodeId() + "_p_v";
-        System.out.println("Sending message from Physical to Virtual Node number " + request.getSenderNodeId() + " : " + request.getMessage());
+        Logger.log("Physical Node " + request.getSenderNodeId() + " : Sending message from Physical to Virtual Layer");
         channel.basicPublish("", queue, null, bos.toByteArray());
     }
 }
