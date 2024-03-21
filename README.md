@@ -27,3 +27,7 @@ Remplacez `<nom_du_fichier>` par le nom du fichier de configuration souhaité.
 ```
 
 Remplacez `<nom_du_fichier>` par le nom du fichier de configuration souhaité.
+
+## Logging des Requêtes
+
+Toutes les requêtes effectuées d'un nœud virtuel à un autre sont enregistrées dans le fichier `log/log.txt`. Ce journal contient des informations détaillées sur la communication entre les nœuds virtuels et leurs nœuds physiques correspondants, ainsi que sur le routage des requêtes dans la couche physique pour atteindre leur destination.
