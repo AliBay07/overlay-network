@@ -140,11 +140,10 @@ public class VirtualNode extends JFrame {
             BufferedImage image = null;
             try {
                 image = ImageIO.read(new File("graphs/graph.png"));
+                imageLabel.setIcon(new ImageIcon(image));
             } catch (IOException e) {
                 e.printStackTrace();
             }
-
-            imageLabel.setIcon(new ImageIcon(image));
 
             JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, imageLabel, chatScrollPane);
             splitPane.setResizeWeight(0.1);
