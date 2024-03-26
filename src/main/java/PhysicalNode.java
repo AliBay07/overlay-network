@@ -169,12 +169,13 @@ public class PhysicalNode {
                 Request request = RequestDeserializer.deserialize(delivery.getBody());
                 if (request != null) {
                     if (request.getDestinationNodeId() == n.getNodeID()) {
-                        sendToVirtualNode(n.channel, new Request(request.getMessage(), request.getOriginalNodeId(), n.getNodeID(), request.getDestinationNodeId()));
+                        sendToVirtualNode(n.channel, new Request(request.getMessage(), request.getOriginalNodeId(), n.getNodeID(),
+                                request.getDestinationNodeId(), request.getOption(), request.getCounter()));
                     } else {
                         Integer nextNode = n.getNextNode(request.getDestinationNodeId());
                         if (nextNode != null) {
                             sendToPhysicalNode(n.channel, new Request(request.getMessage(), request.getOriginalNodeId(), n.getNodeID(),
-                                    request.getDestinationNodeId()), nextNode);
+                                    request.getDestinationNodeId(), request.getOption(), request.getCounter()), nextNode);
                         } else {
                             sendToVirtualNode(n.channel, new Request("Can't find path to router!", request.getOriginalNodeId(),
                                     n.getNodeID(), request.getDestinationNodeId()));
@@ -199,7 +200,7 @@ public class PhysicalNode {
                         Integer nextNode = n.getNextNode(request.getDestinationNodeId());
                         if (nextNode != null) {
                             sendToPhysicalNode(n.channel, new Request(request.getMessage(), request.getOriginalNodeId(), n.getNodeID(),
-                                    request.getDestinationNodeId()), nextNode);
+                                    request.getDestinationNodeId(), request.getOption(), request.getCounter()), nextNode);
                         } else {
                             sendToVirtualNode(n.channel, new Request("Can't find path to router!", request.getOriginalNodeId(),
                                     n.getNodeID(), request.getDestinationNodeId()));

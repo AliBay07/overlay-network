@@ -23,6 +23,7 @@ public class VirtualNode extends JFrame {
     private final JTextField inputField;
     private final JButton sendLeftButton;
     private final JButton sendRightButton;
+    private final JButton sendToButton;
     private JLabel imageLabel = new JLabel();
     private boolean withGraph = false;
 
@@ -74,16 +75,33 @@ public class VirtualNode extends JFrame {
         channel.queueDeclare(queueName2, false, false, false, null);
     }
 
-    public void sendMessageRight(String message) throws IOException {
-        SwingUtilities.invokeLater(() -> this.chatArea.append("Message sent to " + rightNodeId + ": " + message + "\n"));
-        Logger.log("\n========SENDING NEW MESSAGE " + "'" + message + "' FROM " + this.nodeID + " TO " +  rightNodeId + "========");
-        sendTo(channel, new Request(message, nodeID, nodeID, rightNodeId));
+    public void sendMessageRight(int senderId, String message, int counter) throws IOException {
+        SwingUtilities.invokeLater(() -> this.chatArea.append("Message sent right to " + rightNodeId + ": " + message + "\n"));
+        Logger.log("\n========SENDING NEW MESSAGE RIGHT " + "'" + message + "' FROM " + this.nodeID + " TO " +  rightNodeId + "========");
+        counter = (counter > 0) ? counter - 1 : counter;
+        sendTo(channel, new Request(message, senderId, nodeID, rightNodeId, "R", counter));
     }
 
-    public void sendMessageLeft(String message) throws IOException {
-        SwingUtilities.invokeLater(() -> this.chatArea.append("Message sent to " + leftNodeId + ": " + message + "\n"));
-        Logger.log("\n========SENDING NEW MESSAGE " + "'" + message + "' FROM " + this.nodeID + " TO " +  leftNodeId + "========");
-        sendTo(channel, new Request(message, nodeID, nodeID, leftNodeId));
+    public void sendMessageLeft(int senderId, String message, int counter) throws IOException {
+        SwingUtilities.invokeLater(() -> this.chatArea.append("Message sent left to " + leftNodeId + ": " + message + "\n"));
+        Logger.log("\n========SENDING NEW MESSAGE LEFT " + "'" + message + "' FROM " + this.nodeID + " TO " +  leftNodeId + "========");
+        counter = (counter > 0) ? counter - 1 : counter;
+        sendTo(channel, new Request(message, senderId, nodeID, leftNodeId, "L", counter));
+    }
+
+    public void sendToVirtual(String message, int destinationId) throws IOException {
+        SwingUtilities.invokeLater(() -> this.chatArea.append("Message sent to " + destinationId + ": " + message + "\n"));
+
+        int counterRight = (destinationId - this.nodeID + this.numberOfRouters) % this.numberOfRouters;
+        int counterLeft = (this.nodeID - destinationId + this.numberOfRouters) % this.numberOfRouters;
+
+        Logger.log("\n!!!!!========SENDING NEW MESSAGE " + "'" + message + "' FROM " + this.nodeID + " TO " +  destinationId + "========!!!!!");
+
+        if (counterRight <= counterLeft) {
+            sendMessageRight(nodeID, message, counterRight);
+        } else {
+            sendMessageLeft(nodeID, message, counterLeft);
+        }
     }
 
     public VirtualNode(int nodeID) throws Exception {
@@ -93,6 +111,7 @@ public class VirtualNode extends JFrame {
         inputField = new JTextField();
         sendLeftButton = new JButton("Send Left");
         sendRightButton = new JButton("Send Right");
+        sendToButton = new JButton("Send To");
 
         sendRightButton.addActionListener(new ActionListener() {
             @Override
@@ -101,7 +120,7 @@ public class VirtualNode extends JFrame {
                 if (!message.isEmpty()) {
                     try {
                         inputField.setText("");
-                        sendMessageRight(message);
+                        sendMessageRight(nodeID, message, 0);
                     } catch (IOException ex) {
                         throw new RuntimeException(ex);
                     }
@@ -116,7 +135,7 @@ public class VirtualNode extends JFrame {
                 if (!message.isEmpty()) {
                     try {
                         inputField.setText("");
-                        sendMessageLeft(message);
+                        sendMessageLeft(nodeID, message, 0);
                     } catch (IOException ex) {
                         throw new RuntimeException(ex);
                     }
@@ -124,7 +143,52 @@ public class VirtualNode extends JFrame {
             }
         });
 
-        // Setup RabbitMQ Connection
+        sendToButton.addActionListener(e -> {
+            String message = inputField.getText().trim();
+            if (!message.isEmpty()) {
+                JDialog dialog = new JDialog(this, "Send To", true);
+                JPanel panel = new JPanel(new BorderLayout());
+
+                JComboBox<Integer> routerList = new JComboBox<>();
+                for (int i = 0; i <= numberOfRouters; i++) {
+                    if (i != nodeID) {
+                        routerList.addItem(i);
+                    }
+                }
+
+                JButton sendButton = new JButton("Send");
+                sendButton.addActionListener(sendEvent -> {
+                    if (routerList.getSelectedItem() != null) {
+                        int selectedRouter = (Integer) routerList.getSelectedItem();
+                        try {
+                            inputField.setText("");
+                            sendToVirtual(message, selectedRouter);
+                            dialog.dispose();
+                        } catch (IOException ex) {
+                            throw new RuntimeException(ex);
+                        }
+                    }
+                });
+
+                JButton closeButton = new JButton("Close");
+                closeButton.addActionListener(closeEvent -> {
+                    dialog.dispose();
+                });
+
+                panel.add(new JLabel("Select Router: "), BorderLayout.WEST);
+                panel.add(routerList, BorderLayout.CENTER);
+                JPanel buttonPanel = new JPanel(new GridLayout(1, 2));
+                buttonPanel.add(closeButton);
+                buttonPanel.add(sendButton);
+                panel.add(buttonPanel, BorderLayout.SOUTH);
+
+                dialog.add(panel);
+                dialog.pack();
+                dialog.setLocationRelativeTo(this);
+                dialog.setVisible(true);
+            }
+        });
+
         setupRabbitMQ();
     }
 
@@ -157,6 +221,7 @@ public class VirtualNode extends JFrame {
         inputPanel.add(inputField, BorderLayout.CENTER);
         inputPanel.add(sendLeftButton, BorderLayout.WEST);
         inputPanel.add(sendRightButton, BorderLayout.EAST);
+        inputPanel.add(sendToButton, BorderLayout.SOUTH);
         add(inputPanel, BorderLayout.SOUTH);
 
         pack();
@@ -168,7 +233,6 @@ public class VirtualNode extends JFrame {
 
     private void setupRabbitMQ() throws Exception {
         ConnectionFactory factory = new ConnectionFactory();
-        // Set necessary connection properties, e.g., host
         factory.setHost("localhost");
         connection = factory.newConnection();
         channel = connection.createChannel();
@@ -196,11 +260,15 @@ public class VirtualNode extends JFrame {
                 if (request.getMessage().equals("networkSize")) {
                     n.setNumberOfRouters(request.getValue());
                     n.setNeighbors();
-                } else {
+                } else if (request.getCounter() <= 0) {
                     SwingUtilities.invokeLater(() -> n.getChatArea().append("Message received from " + request.getOriginalNodeId() + ": " + request.getMessage()
                             + " - time " + (System.currentTimeMillis() - request.getCreationTime()) + " ms\n"));
                     Logger.log("Virtual Node " + request.getSenderNodeId() + " : Message received from node " + request.getOriginalNodeId() + ": " + request.getMessage());
                     Logger.log("========================================================");
+                } else if (request.getOption().equals("L")) {
+                    n.sendMessageLeft(request.getOriginalNodeId(),request.getMessage(), request.getCounter());
+                } else {
+                    n.sendMessageRight(request.getOriginalNodeId(), request.getMessage(), request.getCounter());
                 }
             }
         };

@@ -7,6 +7,8 @@ public class Request implements Serializable {
     private int destinationNodeId;
     private long creationTime;
     private int value;
+    private String option;
+    private int counter;
 
     public Request(String message, int originalNodeId, int senderNodeId, int destinationNodeId, int value) {
         this.message = message;
@@ -22,6 +24,41 @@ public class Request implements Serializable {
         this.senderNodeId = senderNodeId;
         this.destinationNodeId = destinationNodeId;
         this.creationTime = System.currentTimeMillis();
+    }
+
+    public Request(String message, int originalNodeId, int senderNodeId, int destinationNodeId, String option) {
+        this.message = message;
+        this.originalNodeId = originalNodeId;
+        this.senderNodeId = senderNodeId;
+        this.destinationNodeId = destinationNodeId;
+        this.option = option;
+        this.creationTime = System.currentTimeMillis();
+    }
+
+    public Request(String message, int originalNodeId, int senderNodeId, int destinationNodeId, String option, int counter) {
+        this.message = message;
+        this.originalNodeId = originalNodeId;
+        this.senderNodeId = senderNodeId;
+        this.destinationNodeId = destinationNodeId;
+        this.option = option;
+        this.counter = counter;
+        this.creationTime = System.currentTimeMillis();
+    }
+
+    public int getCounter() {
+        return counter;
+    }
+
+    public void setCounter(int counter) {
+        this.counter = counter;
+    }
+
+    public String getOption() {
+        return option;
+    }
+
+    public void setOption(String option) {
+        this.option = option;
     }
 
     public String getMessage() {
