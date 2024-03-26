@@ -2,7 +2,7 @@
 
 Ce projet est une simulation de réseau comprenant une couche virtuelle et physique, réalisée à l'aide de RabbitMQ en Java.
 
-## Test
+# Test
 
 Pour tester le code, utilisez le script `make.sh`. Voici comment l'utiliser :
 
@@ -44,6 +44,6 @@ Veuillez installer pip à l'aide de la commande suivante :
     pip install -r requirements.txt
 ```
 
-## Logging des Requêtes
+# Logging des Requêtes
 
 Toutes les requêtes effectuées d'un nœud virtuel à un autre sont enregistrées dans le fichier `log/log.txt`. Ce journal contient des informations détaillées sur la communication entre les nœuds virtuels et leurs nœuds physiques correspondants, ainsi que sur le routage des requêtes dans la couche physique pour atteindre leur destination.
