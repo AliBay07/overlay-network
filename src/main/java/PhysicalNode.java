@@ -3,6 +3,9 @@ import java.util.*;
 
 import com.rabbitmq.client.*;
 
+/**
+ * Represents a physical node in the network.
+ */
 public class PhysicalNode {
 
     private int nodeID;
@@ -50,6 +53,12 @@ public class PhysicalNode {
         return neighborTable;
     }
 
+    /**
+     * Generates shortest paths from the current physical node to all other physical nodes in the intranet.
+     * Uses Dijkstra's algorithm to find the shortest paths.
+     * Uses the neighborTable containing information about neighbors of each node.
+     * Populates the shortestPaths map with the shortest paths found.
+     */
     public void generateNodePaths() {
         HashMap<Integer, Integer> parentMap = new HashMap<>();
         HashMap<Integer, Integer> distance = new HashMap<>();
@@ -90,6 +99,13 @@ public class PhysicalNode {
         }
     }
 
+    /**
+     * Retrieves the next node to traverse towards the given destination router.
+     *
+     * @param destinationRouter The ID of the destination router.
+     * @return The ID of the next node to traverse towards the destination router,
+     *         or null if there is no path to the destination or if the destination is unreachable.
+     */
     public Integer getNextNode(int destinationRouter) {
         String key = this.nodeID + "-" + destinationRouter;
         if (!shortestPaths.containsKey(key)) {
@@ -102,6 +118,13 @@ public class PhysicalNode {
         return path.get(0);
     }
 
+    /**
+     * Creates a neighbor table based on the provided nodes information.
+     *
+     * @param nodesInformation A list containing information about the connections between nodes.
+     *                         Each element represents a node and contains a list of 0s and 1s indicating
+     *                         whether there is a connection to other nodes (0 for no connection, 1 for connection).
+     */
     public void createNeighborTable(ArrayList<ArrayList<String>> nodesInformation) {
 
         for (int i = 0; i < nodesInformation.size(); i++) {
@@ -115,6 +138,11 @@ public class PhysicalNode {
         }
     }
 
+    /**
+     * Sets up a connection to RabbitMQ.
+     *
+     * @throws Exception If an error occurs during RabbitMQ setup.
+     */
     private void setupRabbitMQ() throws Exception {
         ConnectionFactory factory = new ConnectionFactory();
         // Set necessary connection properties, e.g., host
@@ -123,6 +151,11 @@ public class PhysicalNode {
         channel = connection.createChannel();
     }
 
+    /**
+     * Creates message queues for communicating with the neighboring routers.
+     *
+     * @throws Exception If an error occurs during queue creation.
+     */
     public void createQueuesForNeighbors() throws Exception {
         for (Integer neighborID : neighbors) {
             String queueName1 = "queue_" + nodeID + "_" + neighborID;
@@ -132,6 +165,11 @@ public class PhysicalNode {
         }
     }
 
+    /**
+     * Creates a message queue for communication between the physical and virtual layers.
+     *
+     * @throws Exception If an error occurs during queue creation.
+     */
     public void createQueueBetweenLayers() throws Exception {
         String queueName1 = "queue" + nodeID + "_v_p";
         String queueName2 = "queue" + nodeID + "_p_v";
@@ -217,6 +255,14 @@ public class PhysicalNode {
         }
     }
 
+    /**
+     * Sends a request to a physical node.
+     *
+     * @param channel   The channel used for communication.
+     * @param request   The request to be sent.
+     * @param nextNode  The ID of the next node to which the request will be sent.
+     * @throws IOException If an I/O error occurs while sending the request.
+     */
     private static void sendToPhysicalNode(Channel channel, Request request, int nextNode) throws IOException {
         request.setCreationTime(System.currentTimeMillis());
         ByteArrayOutputStream bos = new ByteArrayOutputStream();
@@ -228,6 +274,13 @@ public class PhysicalNode {
         channel.basicPublish("", queue, null, bos.toByteArray());
     }
 
+    /**
+     * Sends a request to a virtual node.
+     *
+     * @param channel   The channel used for communication.
+     * @param request   The request to be sent.
+     * @throws IOException If an I/O error occurs while sending the request.
+     */
     private static void sendToVirtualNode(Channel channel, Request request) throws IOException {
         ByteArrayOutputStream bos = new ByteArrayOutputStream();
         ObjectOutputStream oos = new ObjectOutputStream(bos);

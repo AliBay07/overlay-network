@@ -14,6 +14,9 @@ import java.io.File;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
 
+/**
+ * Represents a virtual node, extending JFrame to provide a graphical user interface.
+ */
 public class VirtualNode extends JFrame {
     private int nodeID;
     private int leftNodeId;
@@ -59,15 +62,23 @@ public class VirtualNode extends JFrame {
         this.withGraph = withGraph;
     }
 
+    public JTextArea getChatArea() {
+        return chatArea;
+    }
+
+    /**
+     * Sets the neighboring node IDs based on the current node ID.
+     */
     private void setNeighbors() {
         this.rightNodeId = (nodeID + 1) % numberOfRouters;
         this.leftNodeId = (nodeID - 1 + numberOfRouters) % numberOfRouters;
     }
 
-    public JTextArea getChatArea() {
-        return chatArea;
-    }
-
+    /**
+     * Creates a message queue for communication between the physical and virtual layers.
+     *
+     * @throws Exception If an error occurs during queue creation.
+     */
     public void createQueueBetweenLayers() throws Exception {
         String queueName1 = "queue" + nodeID + "_v_p";
         String queueName2 = "queue" + nodeID + "_p_v";
@@ -75,6 +86,14 @@ public class VirtualNode extends JFrame {
         channel.queueDeclare(queueName2, false, false, false, null);
     }
 
+    /**
+     * Sends a message to the right neighbor.
+     *
+     * @param senderId The ID of the sender.
+     * @param message The message to be sent.
+     * @param counter The remaining number of hops for the message.
+     * @throws IOException If an I/O error occurs while sending the message.
+     */
     public void sendMessageRight(int senderId, String message, int counter) throws IOException {
         SwingUtilities.invokeLater(() -> this.chatArea.append("Message sent right to " + rightNodeId + ": " + message + "\n"));
         Logger.log("\n========SENDING NEW MESSAGE RIGHT " + "'" + message + "' FROM " + this.nodeID + " TO " +  rightNodeId + "========");
@@ -82,6 +101,14 @@ public class VirtualNode extends JFrame {
         sendTo(channel, new Request(message, senderId, nodeID, rightNodeId, "R", counter));
     }
 
+    /**
+     * Sends a message to the left neighbor.
+     *
+     * @param senderId The ID of the sender.
+     * @param message The message to be sent.
+     * @param counter The remaining number of hops for the message.
+     * @throws IOException If an I/O error occurs while sending the message.
+     */
     public void sendMessageLeft(int senderId, String message, int counter) throws IOException {
         SwingUtilities.invokeLater(() -> this.chatArea.append("Message sent left to " + leftNodeId + ": " + message + "\n"));
         Logger.log("\n========SENDING NEW MESSAGE LEFT " + "'" + message + "' FROM " + this.nodeID + " TO " +  leftNodeId + "========");
@@ -89,6 +116,13 @@ public class VirtualNode extends JFrame {
         sendTo(channel, new Request(message, senderId, nodeID, leftNodeId, "L", counter));
     }
 
+    /**
+     * Sends a message to a virtual node.
+     *
+     * @param message The message to be sent.
+     * @param destinationId The ID of the destination virtual node.
+     * @throws IOException If an I/O error occurs while sending the message.
+     */
     public void sendToVirtual(String message, int destinationId) throws IOException {
         SwingUtilities.invokeLater(() -> this.chatArea.append("Message sent to " + destinationId + ": " + message + "\n"));
 
@@ -192,6 +226,10 @@ public class VirtualNode extends JFrame {
         setupRabbitMQ();
     }
 
+    /**
+     * Initializes the graphical user interface for the virtual node.
+     * Sets up the window title, layout, chat area, input field, and buttons.
+     */
     private void initGUI() {
         setTitle("Virtual Node " + nodeID);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -231,6 +269,11 @@ public class VirtualNode extends JFrame {
         SwingUtilities.invokeLater(() -> setVisible(true));
     }
 
+    /**
+     * Sets up a connection to RabbitMQ.
+     *
+     * @throws Exception If an error occurs during RabbitMQ setup.
+     */
     private void setupRabbitMQ() throws Exception {
         ConnectionFactory factory = new ConnectionFactory();
         factory.setHost("localhost");
@@ -266,7 +309,7 @@ public class VirtualNode extends JFrame {
                     Logger.log("Virtual Node " + request.getSenderNodeId() + " : Message received from node " + request.getOriginalNodeId() + ": " + request.getMessage());
                     Logger.log("========================================================");
                 } else if (request.getOption().equals("L")) {
-                    n.sendMessageLeft(request.getOriginalNodeId(),request.getMessage(), request.getCounter());
+                    n.sendMessageLeft(request.getOriginalNodeId(), request.getMessage(), request.getCounter());
                 } else {
                     n.sendMessageRight(request.getOriginalNodeId(), request.getMessage(), request.getCounter());
                 }
@@ -286,6 +329,13 @@ public class VirtualNode extends JFrame {
     }
     }
 
+    /**
+     * Sends a request to the physical layer.
+     *
+     * @param channel   The channel used for communication.
+     * @param request   The request to be sent.
+     * @throws IOException If an I/O error occurs while sending the request.
+     */
     private static void sendTo(Channel channel, Request request) throws IOException {
         ByteArrayOutputStream bos = new ByteArrayOutputStream();
         ObjectOutputStream oos = new ObjectOutputStream(bos);

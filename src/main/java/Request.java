@@ -1,5 +1,8 @@
 import java.io.Serializable;
 
+/**
+ * Represents a request object that can be serialized for communication.
+ */
 public class Request implements Serializable {
     private final String message;
     private final int originalNodeId;
