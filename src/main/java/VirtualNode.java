@@ -97,7 +97,7 @@ public class VirtualNode extends JFrame {
     public void sendMessageRight(int senderId, String message, int counter) throws IOException {
         SwingUtilities.invokeLater(() -> this.chatArea.append("Message sent right to " + rightNodeId + ": " + message + "\n"));
         Logger.log("\n========SENDING NEW MESSAGE RIGHT " + "'" + message + "' FROM " + this.nodeID + " TO " +  rightNodeId + "========");
-        counter = (counter > 0) ? counter - 1 : counter;
+        counter--;
         sendTo(channel, new Request(message, senderId, nodeID, rightNodeId, "R", counter));
     }
 
@@ -112,7 +112,7 @@ public class VirtualNode extends JFrame {
     public void sendMessageLeft(int senderId, String message, int counter) throws IOException {
         SwingUtilities.invokeLater(() -> this.chatArea.append("Message sent left to " + leftNodeId + ": " + message + "\n"));
         Logger.log("\n========SENDING NEW MESSAGE LEFT " + "'" + message + "' FROM " + this.nodeID + " TO " +  leftNodeId + "========");
-        counter = (counter > 0) ? counter - 1 : counter;
+        counter--;
         sendTo(channel, new Request(message, senderId, nodeID, leftNodeId, "L", counter));
     }
 
@@ -154,7 +154,7 @@ public class VirtualNode extends JFrame {
                 if (!message.isEmpty()) {
                     try {
                         inputField.setText("");
-                        sendMessageRight(nodeID, message, 0);
+                        sendMessageRight(nodeID, message, 1);
                     } catch (IOException ex) {
                         throw new RuntimeException(ex);
                     }
@@ -169,7 +169,7 @@ public class VirtualNode extends JFrame {
                 if (!message.isEmpty()) {
                     try {
                         inputField.setText("");
-                        sendMessageLeft(nodeID, message, 0);
+                        sendMessageLeft(nodeID, message, 1);
                     } catch (IOException ex) {
                         throw new RuntimeException(ex);
                     }
@@ -303,7 +303,7 @@ public class VirtualNode extends JFrame {
                 if (request.getMessage().equals("networkSize")) {
                     n.setNumberOfRouters(request.getValue());
                     n.setNeighbors();
-                } else if (request.getCounter() <= 0) {
+                } else if (request.getCounter() == 0) {
                     SwingUtilities.invokeLater(() -> n.getChatArea().append("Message received from " + request.getOriginalNodeId() + ": " + request.getMessage()
                             + " - time " + (System.currentTimeMillis() - request.getCreationTime()) + " ms\n"));
                     Logger.log("Virtual Node " + request.getSenderNodeId() + " : Message received from node " + request.getOriginalNodeId() + ": " + request.getMessage());
