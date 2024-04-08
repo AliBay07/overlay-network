@@ -147,6 +147,7 @@ public class VirtualNode extends JFrame {
         sendRightButton = new JButton("Send Right");
         sendToButton = new JButton("Send To");
 
+        // GUI part
         sendRightButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
@@ -162,6 +163,7 @@ public class VirtualNode extends JFrame {
             }
         });
 
+        // GUI part
         sendLeftButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
@@ -177,6 +179,7 @@ public class VirtualNode extends JFrame {
             }
         });
 
+        // GUI part
         sendToButton.addActionListener(e -> {
             String message = inputField.getText().trim();
             if (!message.isEmpty()) {
@@ -293,6 +296,7 @@ public class VirtualNode extends JFrame {
             n.setWithGraph(true);
         }
 
+        // GUI part
         n.initGUI();
 
         n.createQueueBetweenLayers();

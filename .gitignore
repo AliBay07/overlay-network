@@ -23,9 +23,10 @@ hs_err_pid*
 replay_pid*
 
 .idea/
-pom.xml
 
 graphs/graph.png
 log/log.txt
+
+target/
 
 
