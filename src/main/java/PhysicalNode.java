@@ -231,7 +231,7 @@ public class PhysicalNode {
                 Request request = RequestDeserializer.deserialize(delivery.getBody());
                 if (request != null) {
 
-                    if (request.getMessage().equals("getNetworkSize")) {
+                    if (request.getMessage().equals("getNetworkSize") && request.getDestinationNodeId() == -1) {
                         sendToVirtualNode(n.channel, new Request("networkSize", request.getOriginalNodeId(), n.getNodeID(),
                                 request.getDestinationNodeId(), n.getNeighborTable().size()));
                     } else {

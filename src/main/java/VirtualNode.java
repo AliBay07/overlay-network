@@ -321,7 +321,7 @@ public class VirtualNode extends JFrame {
         };
 
         if (n.getNumberOfRouters() == 0) {
-            sendTo(n.channel, new Request("getNetworkSize", n.getNodeID(), n.getNodeID(), 0));
+            sendTo(n.channel, new Request("getNetworkSize", n.getNodeID(), n.getNodeID(), -1));
         }
 
         String queueName = "queue" + n.getNodeID() + "_p_v";
